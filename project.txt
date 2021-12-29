@@ -1,0 +1,560 @@
+31/10/2019
+..................................................................................
+customer_master table                                                             
+..................................................................................
+create table customer_master
+(customer_no varchar2(10) constraint pk_customer_no primary key,
+name varchar2(30),
+address1 varchar2(30),
+address2 varchar2(30),
+city varchar2(15),
+state varchar2(15),
+pincode number(6),
+bal_due number(10,2)
+)
+..................................................................................
+desc customer_master
+..................................................................................
+name                 null             type
+....                 ....             .....
+customer_no         not null         varchar2(10)
+name                                 varchar2(30)
+address1                             varchar2(30)
+address2                             varchar2(30)
+city                                 varchar2(15)
+state                                varchar2(15)
+pincode                              number(6)
+bal_due                              number(10,2)
+..................................................................................
+sequence
+..................................................................................
+create sequence cs;
+..................................................................................
+trigger
+..................................................................................
+create or replace trigger trg_cust_no
+before insert on
+customer_master
+for each row
+declare
+v_cust_no varchar2(8);
+begin
+select lpad(to_char(cs.nextval),5,0) into v_cust_no
+from dual;
+v_cust_no:='C'||v_cust_no;
+:new.customer_no:=v_cust_no;
+end trg_cust_no;
+...................................................................................
+product_master table
+...................................................................................
+create table product_master
+(product_no varchar2(6) constraint pk_product_no primary key,
+description varchar2(25) constraint nn_description not null,
+unit_measure varchar2(10) constraint nn_unit_measure not null,
+qty_on_hand number(8),
+reorder_lvl number(8),
+cost_price number(10,2),
+selling_price number(8,2)
+)
+....................................................................................
+desc product_master
+....................................................................................
+name                  null               type
+....                  ....               ....
+product_no            not null           varchar2(6)
+description           not null           varchar2(25)
+unit_measure          not null           varchar2(10)
+qty_on_hand                              number(8)
+reorder_lvl                              number(8)
+cost_price                               number(10,2)
+selling_price                            number(8,2)
+.....................................................................................
+sequence
+.....................................................................................
+create sequence ps;
+.....................................................................................
+trigger
+.....................................................................................
+create or replace trigger trg_product_no
+before insert on
+product_master
+for each row
+declare
+v_product_no varchar2(100);
+begin
+select lpad(to_char(ps.nextval),5,0) into v_product_no
+from dual;
+:new.product_no:='P'||v_product_no;
+end trg_product_no;
+......................................................................................
+sales_order_master table
+......................................................................................
+create table sales_order_master
+(s_order_no varchar2(10) constraint s_order_no_pk primary key,
+order_date date default sysdate,
+customer_no varchar2(10) references customer_master(customer_no),
+order_status char(2) constraint chk_order_status check(order_status in('NP','PP','PC')))
+......................................................................................
+desc sales_order_master
+.......................
+name            null            type
+....            ....            ....
+s_order_no      not null        varchar2(10)
+order_date                      date
+customer_no                     varchar2(10)
+order_status                    char(2)
+.......................................................................................
+sequence
+.......................................................................................
+create sequence so;
+.......................................................................................
+trigger
+.......................................................................................
+create or replace trigger trg_order_no_gen
+before insert on
+sales_order_master
+for each row
+declare
+v_master_key varchar2(10);
+begin
+pack_order_pkey_gen.v_master_key:='S'||lpad(to_char(so.nextval),5,0);
+:new.s_order_no:=pack_order_pkey_gen.v_master_key;
+end;
+.......................................................................................
+sales_order_details table
+........................................................................................
+create table sales_order_details
+(s_order_no varchar2(10) constraint nn_s_order_no not null,
+product_no varchar2(10) constraint nn_product_no not null,
+product_rate number(8,2),
+qty_ordered number(8),
+composite primary key(s_order_no,product_no),
+foreign key(s_order_no) references sales_order_master(s_order_no)
+)
+.........................................................................................
+desc sales_order_details
+.........................................................................................
+name                  null              type
+....                  ....              ....
+s_order_no            not null          varchar2(10)
+product_no            not null          varchar2(10)
+product_rate                            number(8,2)
+qty_ordered                             number(8)
+.........................................................................................
+trigger
+.......
+create or replace trigger fk_order_gen
+before insert on
+sales_order_details
+for each row
+declare
+begin
+if:new.s_order_no is null then
+:new.s_order_no:=pack_order_pkey_gen.v_master_key;
+end if;
+end fk_order_no_gen;
+.........................................................................................
+challan_master table
+.........................................................................................
+create table challan_master
+(challan_no varchar2(10) constraint pk_challan_no primary key,
+challan_date date default sysdate,
+s_order_no varchar2(6) constraint fk_s_order_no references sales_order_master(s_order_no),
+challan_amt number(7,2) check(challan_amount>0))
+)
+..........................................................................................
+desc challan_master
+..........................................................................................
+name               null            type
+....               ....            ....
+challan_no         not null        varchar2(10)
+challan_date                       date
+s_order_no                         varchar2(6)
+challan_amt                        number(7,2)
+..........................................................................................
+sequence
+.........
+create sequence cc;
+.......................
+trigger
+.......................
+ create or replace trigger challan_no_trg_cr
+ before insert on
+ challan_master
+ for each row
+ declare
+ v_challan_no varchar2(10);
+ begin
+ select lpad(to_char(cc.nextval),5,0) into v_challan_no from dual;
+ :new.challan_no:='cv'||v_challan_no;
+ end;
+............................................................................................
+challan_details table
+............................................................................................
+create table challan_details
+(challan_no varchar2(10) constraint fk_challan_no references challan_master(challan_no),
+product_no varchar2(10) constraint fk_product_no references product_master(product_no),
+product_amount number,
+qty_disp number(8)
+)
+...........................................................................................
+desc challan_details
+...........................................................................................
+name              null           type
+....              ....           ....
+challan_no                       varchar2(10)
+product_no                       varchar2(10)
+product_amount                   number
+qty_disp                         number(8)
+...........................................................................................
+delivery_schedule table
+...........................................................................................
+create table delivery_schedule
+(s_order_no varchar2(20) constraint fk_s_order_no references sales_order_master(s_order_no),
+delivery_date date default sysdate,
+delivery_address varchar2(100) constraint nn_delivery_address not null,
+product_no varchar2(15) constraint fk_product_no references product_master(product_no),
+quantity number)
+............................................................................................
+desc delivery_schedule
+............................................................................................
+name               null               type
+....               ....               ....
+s_order_no                            varchar2(20)
+delivery_date                         date
+delivery_address   not null           varchar2(100)
+product_no                            varchar2(15)
+quantity                              number
+.............................................................................................
+user_roles table
+.............................................................................................
+create table user_roles
+(role_id number constraint pk_role_id primary key,
+role_desc varchar2(200) constraint unq_role_desc unique)
+.............................................................................................
+desc user_roles
+.............................................................................................
+name               null         type
+....               ....         ....
+role_id            not null     number
+role_desc                       varchar2(200)
+.............................................................................................
+app_users table
+.............................................................................................
+create table app_users
+(id number(10) constraint pk_id primary key,
+username varchar2(30) constraint username_unq unique not null,
+password varchar2(40) constraint nn_password not null,
+first_name varchar2(100),
+last_name varchar2(200),
+start_date date,
+end_date date,
+user_role_id number constraint fk_user_role_id references user_roles(role_id)
+)
+.............................................................................................
+desc app_users
+.............................................................................................
+name                null               type
+....                ....               ....
+id                  not null           number(10)
+username            not null           varchar2(30)
+password            not null           varchar2(40)
+first_name                             varchar2(200)
+last_name                              varchar2(200)
+start_date                             date
+..............................................................................................
+package
+..............................................................................................
+create or replace package app_user_security_pkg
+as
+function get_hash(p_username in varchar2,
+                  p_password in varchar2)
+          return varchar2;
+procedure add_user(p_username in varchar2,
+                      p_password in varchar2,
+                      p_first_name in varchar2,
+                      p_last_name in varchar2,
+                      p_end_date in date,
+                      p_role_id in varchar2,
+                      p_status out varchar2,
+                      p_err_msg out varchar); 
+procedure change_password(p_username in varchar2,
+                             p_old_password in varchar2,
+                             p_new_password in varchar2,
+                             p_status out varchar2,
+                             p_err_msg out varchar);
+procedure valid_user(p_username in varchar2,
+                        p_password in varchar,
+                        p_status out varchar2,
+                        p_err_msg out varchar);
+end;
+.............................................................................................
+package body
+.............................................................................................
+create or replace package body app_user_security_pkg
+as
+function get_hash(p_username in varchar2,
+                  p_password in varchar2)
+    return varchar2
+as
+i_salt varchar2(30):='putyoursalthere';
+ begin
+return dbms_obfuscation_toolkit.md5(
+input_string=>upper(p_username)|| i_salt||upper(p_password));
+end;
+procedure add_user(p_username in varchar2,
+                   p_password in varchar2,
+                   p_first_name in varchar2,
+                   p_last_name in varchar2,
+                   p_end_date in date,
+                   p_role_id in varchar2,
+                   p_status out varchar2,
+                   p_err_msg out varchar)as
+ begin
+               insert into app_users(    id    ,
+                           username,
+                           password,
+                           first_name,
+                           last_name,
+                           start_date,
+                           user_role_id
+              )
+           values(
+            app_users_seq.nextval,
+              upper(p_username),
+              get_hash(p_username,p_password),
+              p_first_name,
+              p_last_name,
+              sysdate,
+              p_role_id
+          );
+commit;     
+p_status:='S';
+p_err_msg:='user created successfully';
+exception when others then
+p_status:='E';
+p_err_msg:='exception in app_user_security_pkg.add_user:'||sqlerrm;
+end;
+
+procedure change_password(p_username   in varchar2,
+                            p_old_password in varchar2,
+                            p_new_password in varchar2,
+                           p_status out varchar2,
+                          p_err_msg out varchar)as
+begin
+   null;
+end;
+...........................................................................................
+sequence
+...........................................................................................
+create sequence app_users_seq;
+..................................
+
+
+...........................................................................................
+DECLARATION FOR TOTALAMT AND BAL_DUE
+...........................................................................................
+declare 
+type qty_ord is table of sales_order_details.qty_ordered%type
+index by binary_integer;
+type pro_amt is table of sales_order_details.product_rate%type
+index by binary_integer;
+q qty_ord;
+p pro_amt;
+v_tot_amt number;
+v_ctl number:=1;
+v_total number:=0;
+v_challan_amt number(10);
+bal_due number(10);
+begin
+select sum(nvl(challan_amt,0))into v_challan_amt from  challan_master where s_order_no='&sno';
+dbms_output.put_line(v_challan_amt);
+for i in(select product_rate ,qty_ordered from sales_order_details
+                              where s_order_no='&sno')
+loop
+q(v_ctl):=i.qty_ordered;
+p(v_ctl):=i.product_rate;
+v_ctl:=v_ctl+1;
+end loop;
+for k in 1..p.count
+loop
+v_total:=v_total+(p(k)*q(k));
+dbms_output.put_line('total amount'||v_total);
+end loop;
+bal_due:=v_total-v_challan_amt;
+dbms_output.put_line('balance due'||bal_due);
+end;
+/
+..........................................................................
+PACKAGE SPECIFICATION(SPEC)
+..........................................................................
+create or replace package pack_sos
+as
+ function fun_tot_amt(p_son in challan_master.s_order_no%type)
+return number;
+
+ function fun_qty_disp(p_challan_no in challan_details.challan_no%type,
+                      p_pdt_no in challan_details.product_no%type,
+                      p_pdt_amt in challan_details.product_amount%type)
+return number;
+
+ function fun_bal_due(p_challan_no in challan_details.challan_no%type)
+ return number;
+
+ function fun_pdt_amt(p_challan_no in challan_details.challan_no%type,
+                      p_pdt_no in challan_details.product_no%type,
+                      p_pdt_amt in challan_details.product_amount%type)
+  return number;
+
+  function fun_cnt_challan(p_s_order_no in challan_master.s_order_no%type)
+  return number;
+ end pack_sos;
+/
+...........................................................................
+PACKAGE PACK_SOS(NULL BODY) 
+............................................................................
+
+create or replace package body pack_sos
+as
+ function fun_tot_amt(p_son in challan_master.s_order_no%type)
+return number 
+as 
+begin
+    null;
+end fun_tot_amt;
+
+ function fun_qty_disp(p_challan_no in challan_details.challan_no%type,
+                      p_pdt_no in challan_details.product_no%type,
+                      p_pdt_amt in challan_details.product_amount%type)
+return number
+as
+begin
+    null;
+end fun_qty_disp;
+
+ function fun_bal_due(p_challan_no in challan_details.challan_no%type)
+ return number
+as
+begin
+    null;
+end fun_bal_due;
+
+ function fun_pdt_amt(p_challan_no in challan_details.challan_no%type,
+                      p_pdt_no in challan_details.product_no%type,
+                      p_pdt_amt in challan_details.product_amount%type)
+  return number
+as
+begin
+    null;
+end fun_pdt_amt;
+
+  function fun_cnt_challan(p_s_order_no in challan_master.s_order_no%type)
+  return number
+as
+begin
+    null;
+end fun_cnt_challan;
+ end pack_sos;
+/
+..........................................................................................
+FUNCTION FUN_TOT_AMT
+...........................................................................................
+create or replace function fun_tot_amt(p_son in challan_master.s_order_no%type)
+return number is
+type pdr is table of
+ number index by binary_integer;
+type qto is table of
+ number index by binary_integer;
+p pdr;
+q qto;
+c number:=1;
+v_totamt number:=0;
+begin
+for j in(select product_rate,qty_ordered from sales_order_details
+                                                   where s_order_no=p_son)
+loop
+p(c):=j.product_rate;
+q(c):=j.qty_ordered;
+c:=c+1;
+end loop;
+for k in 1..p.count
+loop
+v_total:=v_total+(p(k)*q(k));
+end loop;
+return(v_total);
+end fun_tot_amt;
+........................................................................................
+FUNCTION FUN_QTY_DISP
+........................................................................................
+create or replace function fun_qty_disp(p_challan_no in challan_details.challan_no%type,
+                                        p_pdt_no in challan_details.product_no%type,
+                                        p_pdt_amt in challan_details.product_amount%type)
+return number
+is
+pdt_rate number;
+v_qty_disp number;
+v_challan_no varcha2(10);
+begin
+select unique selling_price into pdt_rate
+from product_master
+where product_no=p_pdt_no;
+select unique challan_no into v_challan_no
+from challan_master
+where challan_no=p_challan_no;
+if
+v_challan_no=p_challan_no then
+v_qty_disp:=p_pdt_amt/Pdt_rate;
+return(v_qty_disp);
+end if;
+exception
+when no_data_found then
+raise_application_error(-20123,'challan not valid');
+end fun_qty_disp;
+.........................................................................
+TRIGGER TRG_CHALLAN_BAL_DUE
+..........................................................................
+create or replace trigger trg_challan_bal_due
+after insert
+on challan_master
+for each row
+declare
+pragma autonomous_transaction;
+bal_due1 number;
+begin
+bal_due1:=((pack_sos.fun_tot_amt(:new.s_order_no))-(:new.challan_amt));
+if
+bal_due1>=0 then
+update customer_master set bal_due=bal_due1
+                                       where customer_no=(select customer_no from sales_order_master
+                                       where s_order_no in(select s_order_no
+                                       from
+                                       challan_master
+                                       where
+                                       challan_no=:new.challan_no));
+else
+raise_application_error(-20345,'the bal_amt is not eligible');
+commit;
+end if;
+end trg_challan_bal_due;
+................................................................................
+TRIGGER TRG_CHALLAN_NO
+................................................................................
+create or replace trigger trg_challan_no
+before insert on
+challan_master
+for each row
+declare
+cc_no number;
+begin
+select count(*)into cc_no
+from challan_master
+where
+s_order_no=:new.s_order_no;
+if
+cc_no>=3 then
+raise_application_error(-20000,'excidded more than 3times.');
+end if;
+end trg_challan_no;
+
+
+
