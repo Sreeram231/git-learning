@@ -1,0 +1,18 @@
+How to Install Java on RHEL 8 on linux
+======================================
+How to Install OpenJDK 8
+========================
+-->yum (or) dnf install java-1.8.0-openjdk-devel
+
+How to Install OpenJDK 11
+=========================
+-->yum (or) dnf install java-11-openjdk-devel
+
+How to Switch Java Versions
+===========================
+-->java -version
+
+-->alternatives --config java
+
+-->You’ll see a list of the available Java versions. 
+   Enter the number corresponding to the one you want to use, or press Enter to keep your current one.
